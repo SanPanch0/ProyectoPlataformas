@@ -276,6 +276,9 @@ export function renderHotels(hotels, formatMoney) {
         el('div', { class: 'hotel__media' }, media),
         el('div', { class: 'hotel__body' }, [
           el('p', { class: 'hotel__type' }, [h.type || null, stars(h.stars)]),
+          h.budgetFit === 'ok' ? el('p', { class: 'badge', text: '✔ Dentro de tu presupuesto' }) : null,
+          h.budgetFit === 'over' ? el('p', { class: 'fine muted', text: 'Por encima de tu presupuesto' }) : null,
+          h.budgetFit === 'unknown' ? el('p', { class: 'fine muted', text: 'Sin precio en esta fuente' }) : null,
           el('h3', { class: 'hotel__name', text: h.name }),
           el('p', { class: 'hotel__loc muted', text: h.address || h.location || '' }),
           scoreEl,

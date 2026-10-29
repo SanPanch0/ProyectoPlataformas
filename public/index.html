@@ -150,8 +150,11 @@
       <form class="dates" id="hotel-dates" novalidate>
         <label class="field field--inline"><span>Entrada</span><input type="date" id="checkin" /></label>
         <label class="field field--inline"><span>Salida</span><input type="date" id="checkout" /></label>
+        <label class="field field--inline"><span>¿Cuál es tu presupuesto por noche?</span><input type="text" id="budget" inputmode="decimal" placeholder="Ej. 150" autocomplete="off" /></label>
+        <label class="field field--inline"><span>Moneda</span><select id="budget-cur"><option value="PEN">PEN (soles)</option><option value="USD">USD (dólares)</option></select></label>
         <button type="submit" class="btn btn--ghost">Actualizar</button>
       </form>
+      <p class="banner" id="budget-summary" hidden></p>
       <p class="banner" id="hotels-notice" hidden></p>
       <div id="hotels-state" class="state" hidden></div>
       <div class="hotels" id="hotels"></div>

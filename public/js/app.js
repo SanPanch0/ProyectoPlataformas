@@ -282,6 +282,44 @@ function initDates() {
   $('#checkout').min = addDays(today, 1);
 }
 
+// Presupuesto por noche: convierte a USD (moneda en que se piden los precios), marca cada hotel
+// como dentro/fuera del presupuesto y recomienda primero los mejor puntuados que sí caben.
+function showHotels() {
+  const summary = $('#budget-summary');
+  const list = (state.hotels || []).map((h) => ({ ...h, budgetFit: undefined }));
+  summary.hidden = true;
+  const raw = $('#budget')?.value.trim();
+  const amount = raw ? parseAmount(raw) : NaN;
+  if (raw && !(amount > 0)) {
+    summary.textContent = 'Escribe un presupuesto numérico mayor que 0 (por ejemplo 150).';
+    summary.hidden = false;
+  } else if (amount > 0) {
+    const cur = $('#budget-cur').value;
+    const rate = cur === 'USD' ? 1 : state.rates ? crossRate(state.rates.rates, cur, 'USD') : null;
+    if (!rate) {
+      summary.textContent = 'No hay tipo de cambio disponible para convertir tu presupuesto; usa dólares (USD).';
+      summary.hidden = false;
+    } else {
+      const limit = amount * rate;
+      for (const h of list) {
+        const night = h.price ? (h.price.perNight ?? h.price.total) : null;
+        h.budgetFit = night === null ? 'unknown' : night <= limit ? 'ok' : 'over';
+      }
+      const rank = { ok: 0, unknown: 1, over: 2 };
+      list.sort((a, b) => rank[a.budgetFit] - rank[b.budgetFit] || (b.score ?? 0) - (a.score ?? 0));
+      const ok = list.filter((h) => h.budgetFit === 'ok').length;
+      const unknown = list.filter((h) => h.budgetFit === 'unknown').length;
+      summary.textContent = ok
+        ? `Con ${formatMoney(amount, cur, { exact: true })} por noche, ${ok} alojamiento(s) entran en tu presupuesto. Te mostramos primero los mejor valorados.`
+        : unknown
+          ? 'Ningún alojamiento con precio entra en tu presupuesto. Los demás no tienen precio en esta fuente: revisa sus enlaces.'
+          : 'Ningún alojamiento entra en tu presupuesto. Prueba con otro monto o con otras fechas.';
+      summary.hidden = false;
+    }
+  }
+  renderHotels(list, formatMoney);
+}
+
 async function loadHotels(country, signal) {
   const box = $('#hotels-state');
   const notice = $('#hotels-notice');
@@ -296,6 +334,9 @@ async function loadHotels(country, signal) {
     showError(box, 'La fecha de salida debe ser posterior a la de entrada.');
     return;
   }
+  state.hotelsDates = [checkin, checkout];
+  state.hotels = null;
+  $('#budget-summary').hidden = true;
   showLoading(box, 'Buscando alojamientos en la capital…');
   try {
     const data = await fetchHotels(country, { currency: 'USD', checkin, checkout, signal });
@@ -311,7 +352,8 @@ async function loadHotels(country, signal) {
       return;
     }
     hideState(box);
-    renderHotels(data.hotels, formatMoney);
+    state.hotels = data.hotels;
+    showHotels();
   } catch (err) {
     if (err.code === 'CANCELLED') return;
     showError(box, `No se pudieron cargar los alojamientos: ${err.message}`, () => loadHotels(country, state.controller?.signal || new AbortController().signal));
@@ -349,6 +391,7 @@ function bindEvents() {
 
   $('#hotel-dates').addEventListener('submit', (e) => {
     e.preventDefault();
+    if (state.hotels && state.country && $('#checkin').value === state.hotelsDates?.[0] && $('#checkout').value === state.hotelsDates?.[1]) { showHotels(); return; }
     if (state.country) loadHotels(state.country, state.controller?.signal || new AbortController().signal);
   });
   $('#checkin').addEventListener('change', () => {
