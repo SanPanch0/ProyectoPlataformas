@@ -1,0 +1,10 @@
+# Credenciales: nunca subirlas
+.env
+.env.*
+!.env.example
+
+node_modules/
+.vercel/
+.DS_Store
+*.log
+test-results/

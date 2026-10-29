@@ -1,0 +1,17 @@
+{
+  "name": "guia-global-de-viajes",
+  "version": "1.0.0",
+  "description": "Aplicación web que reúne información de un país, tipo de cambio frente a PEN y USD, fotografías y alojamientos en su capital.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18.17" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test",
+    "check": "node scripts/check-syntax.js",
+    "verificar-apis": "node scripts/verificar-apis.js",
+    "probar-tripadvisor": "node scripts/probar-tripadvisor.js"
+  },
+  "license": "MIT"
+}

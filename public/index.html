@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guía Global de Viajes</title>
+  <meta name="description" content="Escribe un país y obtén su información, moneda, tipo de cambio frente al sol y al dólar, fotografías y alojamientos en su capital." />
+  <meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#121417" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23c4552d'/%3E%3Cpath d='M8 32h48M32 4c10 9 10 47 0 56M32 4c-10 9-10 47 0 56' stroke='%23f4efe6' stroke-width='4' fill='none'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <a class="skip" href="#resultados">Saltar a los resultados</a>
+
+  <header class="hero" id="hero">
+    <div class="hero__bg" id="hero-bg" aria-hidden="true"></div>
+    <div class="hero__inner">
+      <p class="brand">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2 12h20M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        Guía Global de Viajes
+      </p>
+
+      <h1 class="hero__title" id="hero-title">¿A qué país viajas?</h1>
+      <p class="hero__subtitle" id="hero-subtitle">Datos del país, su moneda frente al sol y al dólar, fotografías y alojamientos en su capital, en una sola búsqueda.</p>
+
+      <form class="search" id="search-form" role="search" novalidate>
+        <label class="visually-hidden" for="search-input">Nombre del país</label>
+        <input id="search-input" name="pais" type="search" list="country-list" autocomplete="off"
+               placeholder="Escribe un país: Japón, España, Perú…" maxlength="80" required />
+        <datalist id="country-list"></datalist>
+        <button class="btn btn--primary" type="submit" id="search-btn">
+          <span class="btn__label">Buscar</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+      <p class="search__error" id="search-error" role="alert" hidden></p>
+
+      <div class="chips" aria-label="Destinos de ejemplo">
+        <button type="button" class="chip" data-country="Perú">🇵🇪 Perú</button>
+        <button type="button" class="chip" data-country="Japón">🇯🇵 Japón</button>
+        <button type="button" class="chip" data-country="España">🇪🇸 España</button>
+        <button type="button" class="chip" data-country="México">🇲🇽 México</button>
+        <button type="button" class="chip" data-country="Italia">🇮🇹 Italia</button>
+      </div>
+    </div>
+    <p class="hero__credit" id="hero-credit" hidden></p>
+  </header>
+
+  <div class="offline" id="offline-banner" role="status" hidden></div>
+
+  <nav class="subnav" id="subnav" aria-label="Secciones" hidden>
+    <a href="#country-card">Ficha</a>
+    <a href="#fx-card">Divisas</a>
+    <a href="#weather-card">Clima</a>
+    <a href="#gallery-card">Galería</a>
+    <a href="#hotels-card">Alojamientos</a>
+  </nav>
+
+  <main id="resultados" class="results" aria-live="polite" hidden>
+    <div class="notices" id="notices"></div>
+
+    <div class="grid-2">
+      <!-- Información del país -->
+      <section class="card" id="country-card" aria-labelledby="country-heading">
+        <div class="card__head">
+          <h2 id="country-heading">Ficha del país</h2>
+          <span class="source" id="country-source"></span>
+        </div>
+        <div class="country" id="country-body"></div>
+      </section>
+
+      <!-- Conversor -->
+      <section class="card" id="fx-card" aria-labelledby="fx-heading">
+        <div class="card__head">
+          <h2 id="fx-heading">Conversor de divisas</h2>
+          <span class="source">Frankfurter</span>
+        </div>
+        <div id="fx-state" class="state" hidden></div>
+        <form class="fx" id="fx-form" novalidate hidden>
+          <div class="fx__row">
+            <label class="field">
+              <span>Importe</span>
+              <input id="fx-amount" type="text" inputmode="decimal" value="100" autocomplete="off" />
+            </label>
+          </div>
+          <div class="fx__pair">
+            <label class="field">
+              <span>De</span>
+              <select id="fx-from"></select>
+            </label>
+            <button type="button" class="icon-btn" id="fx-swap" aria-label="Invertir monedas" title="Invertir monedas">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 7h13l-4-4M17 17H4l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <label class="field">
+              <span>A</span>
+              <select id="fx-to"></select>
+            </label>
+          </div>
+          <button class="btn btn--primary btn--block" type="submit">Convertir</button>
+          <output class="fx__result" id="fx-result" for="fx-amount fx-from fx-to"></output>
+          <p class="fx__error" id="fx-error" role="alert" hidden></p>
+          <ul class="fx__quick" id="fx-quick"></ul>
+          <p class="fine" id="fx-meta"></p>
+        </form>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <!-- Clima -->
+      <section class="card" id="weather-card" aria-labelledby="weather-heading">
+        <div class="card__head">
+          <h2 id="weather-heading">Clima en la capital</h2>
+          <span class="source" id="weather-source"></span>
+        </div>
+        <div id="weather-state" class="state" hidden></div>
+        <div id="weather-body"></div>
+      </section>
+
+      <!-- Reseña -->
+      <section class="card" id="about-card" aria-labelledby="about-heading">
+        <div class="card__head">
+          <h2 id="about-heading">Sobre el país</h2>
+          <span class="source" id="about-source"></span>
+        </div>
+        <div id="about-state" class="state" hidden></div>
+        <div id="about-body"></div>
+      </section>
+    </div>
+
+    <!-- Galería -->
+    <section class="card card--wide" id="gallery-card" aria-labelledby="gallery-heading">
+      <div class="card__head">
+        <h2 id="gallery-heading">Galería del destino</h2>
+        <span class="source" id="gallery-source"></span>
+      </div>
+      <div id="gallery-state" class="state" hidden></div>
+      <div class="gallery" id="gallery"></div>
+    </section>
+
+    <!-- Alojamientos -->
+    <section class="card card--wide" id="hotels-card" aria-labelledby="hotels-heading">
+      <div class="card__head">
+        <h2 id="hotels-heading">Alojamientos en la capital</h2>
+        <span class="source" id="hotels-source"></span>
+      </div>
+      <form class="dates" id="hotel-dates" novalidate>
+        <label class="field field--inline"><span>Entrada</span><input type="date" id="checkin" /></label>
+        <label class="field field--inline"><span>Salida</span><input type="date" id="checkout" /></label>
+        <button type="submit" class="btn btn--ghost">Actualizar</button>
+      </form>
+      <p class="banner" id="hotels-notice" hidden></p>
+      <div id="hotels-state" class="state" hidden></div>
+      <div class="hotels" id="hotels"></div>
+      <div class="ext-links" id="hotels-links" hidden>
+        <p class="fine">Enlaces externos de búsqueda (no son resultados de esta aplicación):</p>
+        <div class="ext-links__list" id="hotels-links-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Proyecto académico · Universidad Andina del Cusco · Plataformas para el Desarrollo de Aplicaciones</p>
+    <p class="fine">Datos: REST Countries · Frankfurter · Open-Meteo · Wikipedia · Unsplash / Wikimedia Commons · Booking.com (RapidAPI) / OpenStreetMap. Los tipos de cambio son de referencia y no se actualizan en tiempo real.</p>
+    <p class="fine" id="api-status"></p>
+  </footer>
+
+  <template id="tpl-skeleton">
+    <div class="skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+  </template>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
