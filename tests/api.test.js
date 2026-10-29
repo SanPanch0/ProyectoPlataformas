@@ -66,6 +66,7 @@ before(async () => {
     }
     if (p === '/op') {
       if (special(res, mode.op)) return;
+      if (mode.opEmptyFirst && (mode.opCalls = (mode.opCalls || 0) + 1) === 1) return reply(res, 200, { elements: [] });
       return reply(res, 200, overpass);
     }
     if (p === '/geo/v1/search') {
@@ -437,4 +438,25 @@ test('Hoteles: si Tripadvisor falla (401), se usa OpenStreetMap', async () => {
   assert.equal(r.status, 200);
   assert.match(r.body.provider, /OpenStreetMap/);
   assert.ok(r.body.warnings.some((w) => /Tripadvisor/.test(w)));
+});
+
+// ---------- Hoteles: países sin resultados ----------
+
+test('Hoteles: si el radio de 3 km está vacío, amplía a 10 km', async () => {
+  mode.bk = '403';
+  mode.opEmptyFirst = true;
+  const r = await get('/api/hotels?city=Tokyo&country=Japan&lat=35.68&lng=139.75');
+  assert.equal(r.status, 200);
+  assert.match(r.body.provider, /Overpass/);
+  assert.ok(r.body.hotels.length > 0);
+  assert.equal(calls.filter((c) => c.path === '/op').length, 2, 'una consulta por radio');
+});
+
+test('Hoteles: sin coordenadas, las busca por el nombre de la capital', async () => {
+  mode.bk = '403';
+  const r = await get('/api/hotels?city=Tokyo&country=Japan');
+  assert.equal(r.status, 200);
+  assert.ok(calls.some((c) => c.path === '/geo/v1/search'), 'consulta el geocodificador');
+  assert.match(r.body.provider, /Overpass/);
+  assert.ok(r.body.hotels.length > 0);
 });

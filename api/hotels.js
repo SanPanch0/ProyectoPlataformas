@@ -11,6 +11,7 @@
 import { fetchJson, getQuery, sendJson, sendError, env, cached, UpstreamError } from '../lib/upstream.js';
 import { normalizeBookingHotels, normalizeOsmHotels, normalizeNominatimHotels } from '../lib/normalize.js';
 import { fetchTripadvisorHotels } from '../lib/tripadvisor.js';
+import { geocodeCity } from './weather.js';
 
 const HOUR = 60 * 60 * 1000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -94,16 +95,12 @@ function sortUseful(hotels) {
   return hotels.sort((a, b) => Number(Boolean(b.stars)) - Number(Boolean(a.stars)) || Number(!b.url.includes('openstreetmap')) - Number(!a.url.includes('openstreetmap')));
 }
 
-async function fromOverpass({ city, lat, lng }) {
-  if (lat === null || lng === null) {
-    throw new UpstreamError('NO_COORDINATES', 'no hay coordenadas de la capital', 422);
-  }
-  const custom = env('OVERPASS_URLS', env('OVERPASS_URL'));
-  const urls = custom ? custom.split(',').map((u) => u.trim()).filter(Boolean) : DEFAULT_OVERPASS;
-  // Consulta ligera (radio 3 km) para que los servidores no la rechacen.
-  const query = `[out:json][timeout:15];
-nwr["tourism"~"^(hotel|hostel|guest_house|apartment|motel)$"]["name"](around:3000,${lat},${lng});
-out center 40;`;
+// Radios de búsqueda: primero 3 km (consulta ligera); si no hay alojamientos registrados,
+// se amplía a 10 km. En países pequeños o con poca cobertura de OpenStreetMap el centro
+// puede estar vacío aunque haya hoteles un poco más lejos.
+const OVERPASS_RADII = [3000, 10000];
+
+async function queryOverpass(urls, query, city) {
   // Todos los servidores se consultan A LA VEZ y gana el primero que responde bien
   // (antes se probaban uno tras otro: con 3 servidores caídos eran hasta 45 s de espera).
   const errors = [];
@@ -128,12 +125,29 @@ out center 40;`;
   }
 }
 
+async function fromOverpass({ city, lat, lng }) {
+  if (lat === null || lng === null) {
+    throw new UpstreamError('NO_COORDINATES', 'no hay coordenadas de la capital', 422);
+  }
+  const custom = env('OVERPASS_URLS', env('OVERPASS_URL'));
+  const urls = custom ? custom.split(',').map((u) => u.trim()).filter(Boolean) : DEFAULT_OVERPASS;
+  let result = { hotels: [] };
+  for (const radius of OVERPASS_RADII) {
+    const query = `[out:json][timeout:15];
+nwr["tourism"~"^(hotel|hostel|guest_house|apartment|motel)$"]["name"](around:${radius},${lat},${lng});
+out center 40;`;
+    result = await queryOverpass(urls, query, city);
+    if (result.hotels.length) return result;
+  }
+  return result;
+}
+
 // Segundo respaldo sin clave: Nominatim (buscador oficial de OpenStreetMap).
 async function fromNominatim({ city, country, lat, lng }) {
   const api = env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org/search');
   const params = new URLSearchParams({ format: 'jsonv2', limit: '30', extratags: '1', 'accept-language': 'es' });
   if (lat !== null && lng !== null) {
-    const d = 0.05; // unos 5 km alrededor del centro de la capital
+    const d = 0.1; // unos 10 km alrededor del centro de la capital
     params.set('q', '[hotel]');
     params.set('viewbox', `${lng - d},${lat + d},${lng + d},${lat - d}`);
     params.set('bounded', '1');
@@ -144,9 +158,18 @@ async function fromNominatim({ city, country, lat, lng }) {
   return { hotels: sortUseful(normalizeNominatimHotels(payload, city)).slice(0, 12) };
 }
 
-export async function resolveHotels(params) {
+export async function resolveHotels(input) {
   const warnings = [];
-  const links = externalLinks(params);
+  const links = externalLinks(input);
+  let params = input;
+  // Algunas fuentes de países (countries.dev) no traen las coordenadas de la capital y sin ellas
+  // OpenStreetMap y Tripadvisor no pueden buscar por zona: se obtienen por el nombre de la ciudad.
+  if (params.lat === null || params.lng === null) {
+    try {
+      const geo = await cached(`geo:${params.city.toLowerCase()}:${params.country.toLowerCase()}`, 7 * 24 * 60 * 60 * 1000, () => geocodeCity(params.city, params.country));
+      params = { ...params, lat: geo.lat, lng: geo.lng };
+    } catch { /* sin coordenadas se intenta Nominatim por nombre */ }
+  }
   try {
     const { hotels, destination } = await fromBooking(params);
     if (hotels.length) {
